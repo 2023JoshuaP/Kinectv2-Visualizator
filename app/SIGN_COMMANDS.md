@@ -1,25 +1,35 @@
-# Personal sign commands
+# Letras y aplicaciones por señas
 
-The default **Recognize signs** workspace matches your calibrated static hand poses to letters and actions. LSP and LSE are separate personal sample profiles, not pre-trained or linguistically validated alphabet models. Dynamic letters and two-handed signs are not supported.
+La pestaña **Recognize signs** muestra la letra reconocida en grande y sobre la cámara. Los modelos base **LSP** y **ASL** son experimentales: reconocen 24 letras estáticas, no J, Z ni Ñ. **LSE** requiere muestras personales. No es un traductor de lengua de señas ni un reconocimiento validado; las letras parecidas, como M/N/T, pueden confundirse.
 
-## Setup
+## Reconocer una letra
 
-1. Select **Start recognition**. Color and hand analysis are configured automatically in the recognition workspace.
-2. Follow **Choose a sign → Teach the pose → Try the action** below the live camera. Select a profile and letter. Show exactly one hand and click **Record current pose** at least three times, varying the pose slightly. The counter shows samples for each hand. Use a reliable alphabet reference for your language when forming the sign.
-3. Repeat for N and T. Samples persist locally in Qt's application-data directory as `sign-templates.json`; they are specific to the recorded hand side. Record additional samples for the other hand if needed.
-4. Check recognition with actions disabled. Unrecognized or ambiguous poses display `unknown`. Similar fingers or occluded thumbs can still cause mistakes; these thresholds have not been validated on a sign-language dataset.
-5. Enable actions. Hold a recognized pose for 0.8 seconds. Release it for at least 0.5 seconds before issuing another command. There is a two-second minimum interval between executions.
+1. Pulsa **Start recognition**. Se activa color y detección de manos automáticamente.
+2. Elige el perfil de alfabeto y muestra **una sola mano**, bien iluminada y completamente visible.
+3. Consulta **Recognized letter · live result**: es el resultado de la cámara, no la letra seleccionada para configurar una acción. `—` indica que no hay una coincidencia clara.
+4. Si una letra falla, selecciónala y pulsa **Record current pose** al menos tres veces, variando ligeramente la pose con la misma mano. Estas muestras tienen prioridad sobre el modelo base y se guardan localmente en `sign-templates.json`, en el directorio de datos de la aplicación Qt. Graba también la otra mano si quieres usarla.
 
-Default bindings are N → browser and T → terminal. Change bindings with the action selector; bindings last for the current session. Recording samples disables actions. The browser uses the desktop's default handler; the terminal uses an installed terminal emulator without shell evaluation.
+## Abrir aplicaciones
 
-## Kinect depth and performance
+Las acciones están **desactivadas al iniciar**. Primero comprueba que las letras se reconocen correctamente.
 
-Enable both streams and **Extended registration** before capture to use the optional 0.5–2.5 m wrist-distance filter. Missing valid depth rejects the command while this filter is enabled. Wrist depth uses the median of valid values in a small registered neighborhood to reduce isolated invalid pixels; it is not ground-truth finger geometry.
+| Letra | Acción inicial |
+| --- | --- |
+| T | Terminal |
+| N | Navegador predeterminado |
+| C | Calculadora, si está instalada |
+| E | Editor de texto, si está instalado |
+| F | Archivos, si está instalado |
+| V | VS Code o VSCodium, si está instalado |
 
-Image reduction occurs before RGB conversion to reduce full-resolution conversion work. The existing latest-frame mailbox and MediaPipe VIDEO tracking remain in use. No measured FPS or accuracy improvement is claimed without hardware testing.
+Para cambiar una asignación, selecciona la **Letter** y la acción en **Action for this session**. Puedes asignar cualquier aplicación detectada a otra letra. **none** elimina la asignación.
 
-## Adding device actions
+**Choose another application…** permite elegir un ejecutable (por ejemplo, `/usr/bin/code` o un AppImage ejecutable), no un archivo `.desktop` ni una línea de comandos. Se asigna a la letra seleccionada y desactiva las acciones para que puedas comprobar el cambio. Los programas se lanzan sin evaluar comandos de shell y sin argumentos adicionales.
 
-`ActionRegistry` in `sign_commands.py` maps letters to named handler functions independently of the matcher. Register a smart-device adapter and bind a letter to its name. Network adapters should use a worker with timeouts rather than blocking the GUI; the current local handlers only launch desktop applications.
+Activa **Enable actions**, mantén la letra durante **0,8 segundos** y retira la mano al menos **0,5 segundos** antes del siguiente comando. Hay un mínimo de dos segundos entre ejecuciones. Las asignaciones duran la sesión; las muestras personales sí persisten.
 
-This is a personal static-command prototype, not a sign-language translator. A validated alphabet recognizer still requires representative labeled data and evaluation with users of that language.
+## Profundidad e integración
+
+El filtro opcional **Require wrist distance 0.5–2.5 m**, en las herramientas avanzadas, requiere ambos flujos y **Extended registration**. Si no hay profundidad válida, rechaza la acción. La distancia a la muñeca es aproximada, no geometría precisa de los dedos.
+
+`ActionRegistry` en `sign_commands.py` separa las acciones del reconocimiento. Los adaptadores de red deben usar un worker con tiempos de espera para no bloquear la interfaz. La inferencia de manos procesa el frame más reciente en un hilo independiente.

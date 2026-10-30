@@ -3,7 +3,7 @@
 import os
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -146,6 +146,64 @@ class HandAnalyzerTests(unittest.TestCase):
         self.assertEqual(len(hand["landmarks"]), 21)
         self.assertEqual(len(hand["world_landmarks"]), 21)
         self.assertEqual(hand["image_size"], (640, 360))
+
+    def test_recognized_letters_only_launch_when_actions_are_enabled(self):
+        app = QApplication.instance() or QApplication([])
+        window = MainWindow()
+        try:
+            window.templates = Mock()
+            window.templates.recognize.return_value = "T"
+            launch = Mock()
+            window.actions.handlers["terminal"] = launch
+            window.command_gate = Mock(update=Mock(return_value="T"))
+            window.process_commands([{}])
+            self.assertEqual(window.recognized_letter.text(), "T")
+            launch.assert_not_called()
+            window.enable_actions.setChecked(True)
+            window.command_gate = Mock(update=Mock(return_value="T"))
+            window.process_commands([{}])
+            launch.assert_called_once_with()
+            self.assertIn("terminal", window.command_status.text())
+        finally:
+            window.close()
+
+    def test_custom_application_is_bound_to_selected_letter_without_shell(self):
+        app = QApplication.instance() or QApplication([])
+        window = MainWindow()
+        try:
+            window.letter.setCurrentText("A")
+            window.enable_actions.setChecked(True)
+            with patch("main.QFileDialog.getOpenFileName", return_value=("/usr/bin/custom app", "")), \
+                    patch("main.Path.is_file", return_value=True), \
+                    patch("main.os.access", return_value=True):
+                window.choose_application()
+            self.assertFalse(window.enable_actions.isChecked())
+            self.assertEqual(window.actions.bindings["A"], "app: /usr/bin/custom app")
+            with patch("main.shutil.which", return_value="/usr/bin/custom app"), \
+                    patch("main.QProcess.startDetached", return_value=(True, 123)) as start:
+                window.actions.execute("A")
+                start.assert_called_once_with("/usr/bin/custom app", [])
+            self.assertIn("A → app:", window.bindings_status.text())
+            window.letter.setCurrentText("T")
+            self.assertEqual(window.action_choice.currentText(), "terminal")
+            window.letter.setCurrentText("A")
+            self.assertEqual(window.action_choice.currentText(), "app: /usr/bin/custom app")
+        finally:
+            window.close()
+
+    def test_application_launch_failure_is_reported(self):
+        app = QApplication.instance() or QApplication([])
+        window = MainWindow()
+        try:
+            with patch("main.shutil.which", return_value=None):
+                with self.assertRaises(OSError):
+                    window.open_terminal()
+            with patch("main.shutil.which", return_value="/usr/bin/example"), \
+                    patch("main.QProcess.startDetached", return_value=(False, 0)):
+                with self.assertRaises(OSError):
+                    window.launch_application(("example",))
+        finally:
+            window.close()
 
     def test_alphabet_dispatch_personal_priority_and_depth_rejection(self):
         app = QApplication.instance() or QApplication([])

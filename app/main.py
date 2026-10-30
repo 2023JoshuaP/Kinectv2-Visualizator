@@ -2,6 +2,7 @@
 
 import sys
 import shutil
+import os
 from datetime import datetime
 from pathlib import Path
 from time import monotonic
@@ -27,6 +28,14 @@ HAND_EDGES = ((0, 1), (1, 2), (2, 3), (3, 4),
               (9, 13), (13, 14), (14, 15), (15, 16),
               (13, 17), (17, 18), (18, 19), (19, 20), (0, 17))
 
+APPLICATIONS = {
+    "terminal": ("x-terminal-emulator", "konsole", "gnome-terminal", "kitty", "alacritty", "xterm"),
+    "files": ("nautilus", "dolphin", "thunar", "nemo", "pcmanfm"),
+    "calculator": ("gnome-calculator", "kcalc", "galculator", "qalculate-gtk"),
+    "editor": ("gnome-text-editor", "gedit", "kate", "mousepad", "xed"),
+    "vscode": ("code", "codium"),
+}
+
 
 class ImageView(QLabel):
     clicked = pyqtSignal(float, float)
@@ -38,7 +47,7 @@ class ImageView(QLabel):
         self.setStyleSheet("background: #161b23; color: #dce6f1; padding: 10px;")
         self._size = None
 
-    def show_array(self, array, hands=()):
+    def show_array(self, array, hands=(), letter=None):
         height, width, _ = array.shape
         image = QImage(array.data, width, height, array.strides[0],
                        QImage.Format.Format_RGB888).copy()
@@ -46,7 +55,7 @@ class ImageView(QLabel):
             960, 640, Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.FastTransformation
         )
-        if hands:
+        if hands or letter:
             painter = QPainter(pixmap)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             for hand in hands:
@@ -59,6 +68,14 @@ class ImageView(QLabel):
                 painter.setPen(QPen(QColor("#ffdd72"), 4))
                 for x, y, _ in points:
                     painter.drawPoint(round(x * pixmap.width()), round(y * pixmap.height()))
+            if letter:
+                painter.fillRect(8, 8, 180, 64, QColor("#161b23"))
+                painter.setPen(QColor("#ffdd72"))
+                font = painter.font()
+                font.setPointSize(28)
+                font.setBold(True)
+                painter.setFont(font)
+                painter.drawText(18, 54, f"Letra: {letter}")
             painter.end()
         self.setPixmap(pixmap)
         self._size = (width, height)
@@ -83,7 +100,11 @@ class MainWindow(QMainWindow):
         self.gesture_overlay = None
         self.gesture_received_at = 0.0
         self.command_gate = ActivationGate()
-        self.actions = ActionRegistry({"browser": self.open_browser, "terminal": self.open_terminal})
+        handlers = {"browser": self.open_browser, "terminal": self.open_terminal}
+        for name, candidates in APPLICATIONS.items():
+            if name != "terminal" and any(shutil.which(candidate) for candidate in candidates):
+                handlers[name] = lambda candidates=candidates: self.launch_application(candidates)
+        self.actions = ActionRegistry(handlers)
         self.template_error = ""
         self.base_models = {}
         self.model_errors = {}
@@ -266,7 +287,7 @@ class MainWindow(QMainWindow):
         self.letter.addItems(list("ABCDEFGHIJKLMNÑOPQRSTUVWXYZ"))
         self.letter.setCurrentText("N")
         self.action_choice = QComboBox()
-        self.action_choice.addItems(("none", "browser", "terminal"))
+        self.action_choice.addItems(("none", *self.actions.handlers))
         self.action_choice.setCurrentText("browser")
         self.letter.currentTextChanged.connect(lambda letter: self.action_choice.setCurrentText(
             self.actions.bindings.get(letter, "none")))
@@ -328,6 +349,13 @@ class MainWindow(QMainWindow):
         tip = QLabel("To personalize a letter, record at least 3 samples with the same hand.")
         tip.setWordWrap(True)
         groups[1].addWidget(tip)
+        self.add_application = QPushButton("Choose another application…")
+        self.add_application.clicked.connect(self.choose_application)
+        groups[2].addWidget(self.add_application)
+        self.bindings_status = QLabel()
+        self.bindings_status.setWordWrap(True)
+        groups[2].addWidget(self.bindings_status)
+        self.update_bindings_status()
         groups[2].addWidget(self.enable_actions)
         tip = QLabel("Hold for 0.8 s. Release your pose before the next action.")
         tip.setWordWrap(True)
@@ -645,6 +673,28 @@ class MainWindow(QMainWindow):
         else:
             self.actions.bindings[self.letter.currentText()] = action
         self.reset_commands()
+        self.update_bindings_status()
+
+    def update_bindings_status(self):
+        self.bindings_status.setText(" · ".join(
+            f"{letter} → {action}" for letter, action in sorted(self.actions.bindings.items())
+        ) or "No actions assigned")
+
+    def choose_application(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Choose an application executable (not a .desktop file)", "/usr/bin")
+        if not path:
+            return
+        if not Path(path).is_file() or not os.access(path, os.X_OK) or path.endswith(".desktop"):
+            self.command_status.setText("Choose an executable file, not a desktop shortcut")
+            return
+        self.enable_actions.setChecked(False)
+        action = f"app: {path}"
+        self.actions.handlers[action] = lambda: self.launch_application((path,))
+        if self.action_choice.findText(action) < 0:
+            self.action_choice.addItem(action)
+        self.action_choice.setCurrentText(action)
+        self.command_status.setText(f"Assigned {self.letter.currentText()} → {path}")
 
     def record_pose(self):
         if (self.templates is None or not self.gesture_overlay or
@@ -693,11 +743,12 @@ class MainWindow(QMainWindow):
             raise OSError("Could not open the browser")
 
     def open_terminal(self):
-        executable = next((shutil.which(name) for name in
-                           ("x-terminal-emulator", "konsole", "gnome-terminal", "kitty", "alacritty", "xterm")
-                           if shutil.which(name)), None)
+        self.launch_application(APPLICATIONS["terminal"])
+
+    def launch_application(self, candidates):
+        executable = next((path for name in candidates if (path := shutil.which(name))), None)
         if executable is None or not QProcess.startDetached(executable, [])[0]:
-            raise OSError("Could not launch an installed terminal")
+            raise OSError(f"Could not launch application: {', '.join(candidates)}")
 
     def on_device_ready(self, info):
         self.info = info
@@ -722,7 +773,9 @@ class MainWindow(QMainWindow):
         active = self.tabs.tabText(self.tabs.currentIndex())
         if self.workspace.currentIndex() == 0 and "Color" in frames:
             overlay = self.gesture_overlay if monotonic() - self.gesture_received_at < 0.5 else ()
-            self.sign_preview.show_array(display_image("Color", frames["Color"]), overlay)
+            letter = self.recognized_letter.text() if overlay else None
+            self.sign_preview.show_array(display_image("Color", frames["Color"]), overlay,
+                                         letter if letter != "—" else None)
         elif active in self.views and active in frames:
             overlay = (self.gesture_overlay if active == "Color" and
                        monotonic() - self.gesture_received_at < 0.5 else ())

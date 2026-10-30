@@ -12,3 +12,5 @@ pylibfreenect2/
 .vscode/
 .idea/
 .env
+.venv/
+.local-deps/

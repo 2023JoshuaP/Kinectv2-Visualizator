@@ -100,6 +100,9 @@ class ActionRegistry:
     def __init__(self, handlers):
         self.handlers = handlers
         self.bindings = {"N": "browser", "T": "terminal"}
+        for letter, action in (("C", "calculator"), ("E", "editor"), ("F", "files"), ("V", "vscode")):
+            if action in handlers:
+                self.bindings[letter] = action
 
     def execute(self, letter):
         action = self.bindings.get(letter)

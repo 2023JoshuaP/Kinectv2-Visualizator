@@ -45,3 +45,11 @@ class CommandTests(unittest.TestCase):
         light.assert_called_once_with()
         registry.execute("Z")
         light.assert_called_once_with()
+
+    def test_default_app_bindings_only_include_available_handlers(self):
+        calculator = Mock()
+        registry = ActionRegistry({"calculator": calculator})
+        self.assertEqual(registry.bindings["C"], "calculator")
+        self.assertNotIn("F", registry.bindings)
+        registry.execute("C")
+        calculator.assert_called_once_with()

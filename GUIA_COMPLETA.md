@@ -26,40 +26,98 @@ Debe aparecer `Microsoft Corp. Xbox NUI Sensor` con enlace a **5000M o más**. S
 
 ## Instalación y compilación
 
-### Instalar dependencias
+### 1. Instalar dependencias del sistema
 
-Fedora:
+Se requiere **Python 3.10, 3.11 o 3.12** (recomendado 3.12; MediaPipe y NumPy 1.x aún no tienen soporte completo en Python 3.13), además de compilador C++, CMake y bibliotecas para USB y JPEG:
+
+**Ubuntu / Debian:**
 
 ```bash
-sudo dnf install cmake gcc-c++ make pkgconf-pkg-config libusb1-devel libjpeg-turbo-devel turbojpeg-devel glfw-devel git
+sudo apt update
+sudo apt install cmake g++ make pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev git python3-dev python3-venv python3-pip
+```
+> [!NOTE]
+> Si tu distribución viene por defecto con Python 3.13 (por ejemplo Ubuntu 24.10+), instala Python 3.12 explícitamente: `sudo apt install python3.12 python3.12-dev python3.12-venv`.
+
+**Fedora:**
+
+```bash
+sudo dnf install cmake gcc-c++ make pkgconf-pkg-config libusb1-devel libjpeg-turbo-devel turbojpeg-devel glfw-devel git python3-devel python3-pip
 ```
 
-Ubuntu/Debian:
+**Arch Linux / Manjaro:**
 
 ```bash
-sudo apt install cmake g++ make pkg-config libusb-1.0-0-dev libturbojpeg0-dev libglfw3-dev git
+sudo pacman -S cmake gcc make pkgconf libusb libjpeg-turbo glfw git python python-pip
 ```
 
-También necesitas [Micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html) para crear el entorno Python descrito a continuación. Si ya tienes un entorno `.venv` preparado, `run.sh` lo utiliza con preferencia.
+---
 
-### Compilar libfreenect2 e instalar el binding Python
+### 2. Compilar libfreenect2
 
-Para una instalación nueva:
+Desde la raíz del repositorio:
 
 ```bash
+# Clonar y compilar libfreenect2 localmente (sin sudo)
 git clone https://github.com/OpenKinect/libfreenect2.git libfreenect2
 cmake -S libfreenect2 -B libfreenect2/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/libfreenect2/install" -DENABLE_CUDA=OFF
 cmake --build libfreenect2/build --parallel
 cmake --install libfreenect2/build
+```
 
+---
+
+### 3. Preparar el binding Python (`pylibfreenect2`)
+
+Aplica los parches de compatibilidad para Python 3.12 y la API extendida de este proyecto:
+
+```bash
 git clone https://github.com/r9y9/pylibfreenect2.git pylibfreenect2
 git -C pylibfreenect2 apply ../patches/pylibfreenect2-python312.patch
 git -C pylibfreenect2 apply ../patches/pylibfreenect2-extra-api.patch
+```
+
+> [!IMPORTANT]
+> **No repitas clones ni parches** si esos directorios ya existen.
+
+---
+
+### 4. Configurar el entorno Python
+
+Elige una de las dos opciones según tus preferencias. `run.sh` detecta `.venv` de forma automática.
+
+#### Opción A: Entorno virtual estándar (`venv`) [Recomendado]
+
+No necesitas herramientas externas. Usa el módulo `venv` integrado de Python:
+
+```bash
+# 1. Crear el entorno virtual en .venv (usa python3.12 si tu python3 por defecto es 3.13)
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 2. Actualizar herramientas base e instalar dependencias del proyecto
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt
+
+# 3. Compilar e instalar pylibfreenect2 vinculando a la compilación local
+env LIBFREENECT2_INSTALL_PREFIX="$PWD/libfreenect2/install" pip install --no-build-isolation --no-deps ./pylibfreenect2
+```
+
+*(Si utilizas `uv`, el proceso equivalente es: `uv venv --python 3.12 .venv && uv pip install -r requirements.txt && env LIBFREENECT2_INSTALL_PREFIX="$PWD/libfreenect2/install" uv pip install --no-build-isolation --no-deps ./pylibfreenect2`)*
+
+#### Opción B: Con Micromamba / Conda
+
+Si prefieres gestionar el entorno con [Micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html):
+
+```bash
+# Crear entorno desde environment.yml
 micromamba create -y -f environment.yml
+
+# Instalar pylibfreenect2 en el entorno
 env LIBFREENECT2_INSTALL_PREFIX="$PWD/libfreenect2/install" micromamba run -n kinectv2-dev python -m pip install --no-build-isolation --no-deps ./pylibfreenect2
 ```
 
-**No repitas clones ni parches si esos directorios ya existen.** Si el entorno `kinectv2-dev` ya existe, sustituye `micromamba create` por:
+Si el entorno `kinectv2-dev` ya existía previamente, actualízalo con:
 
 ```bash
 micromamba env update -n kinectv2-dev -f environment.yml

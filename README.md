@@ -4,7 +4,7 @@ Aplicación PyQt6 para ver color, infrarrojo y profundidad del **Kinect v2**, co
 
 ## Primera instalación
 
-Sigue la [guía de instalación](GUIA_COMPLETA.md#instalación-y-compilación) para preparar las dependencias y el entorno Python. Completa también los [permisos USB con `udev`](GUIA_COMPLETA.md#permisos-usb-persistentes): sin ellos puede aparecer `LIBUSB_ERROR_ACCESS` aunque el Kinect figure en `lsusb`.
+Sigue la [guía de instalación](GUIA_COMPLETA.md#instalación-y-compilación) para preparar las dependencias del sistema y el entorno Python (puedes usar `venv` estándar con `requirements.txt` o Micromamba con `environment.yml`). Completa también los [permisos USB con `udev`](GUIA_COMPLETA.md#permisos-usb-persistentes): sin ellos puede aparecer `LIBUSB_ERROR_ACCESS` aunque el Kinect figure en `lsusb`.
 
 ## Ejecutar
 

@@ -34,7 +34,7 @@ Los enchufes y focos Tuya se controlan **en la red local** con `tinytuya`, sin p
 
 ### Preparar una máquina nueva
 
-1. Instala las dependencias: `micromamba env update -n kinectv2-dev -f environment.yml` (incluye `tinytuya`). Si usas `.venv`, instala `tinytuya>=1.13` en ese entorno.
+1. Instala las dependencias en tu entorno: `pip install -r requirements.txt` (en `.venv`) o `micromamba env update -n kinectv2-dev -f environment.yml`.
 2. Obtén el `id` y la `local key` de cada dispositivo, con [tuya-local-key](https://github.com/vineetchoudhary/tuya-local-key) o con `python -m tinytuya wizard` (incluido en `tinytuya`; requiere una cuenta de Tuya IoT Platform). Solo hace falta hacerlo una vez: la clave cambia únicamente si vuelves a emparejar el dispositivo en la app.
 3. Copia `smart-devices.example.json` como `smart-devices.json`, en la raíz del repositorio, y rellena `id` y `key`. Deja `"ip": "auto"`. También se acepta el `devices.json` que genera `tinytuya wizard`; el tipo se deduce de su `category`. Para usar otra ruta, define `KINECT_SMART_DEVICES=/ruta/archivo.json`.
 4. Ejecuta `sh run.sh` y pulsa **Find devices on network** en el panel **Smart devices**.

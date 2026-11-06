@@ -1,0 +1,16 @@
+# Dependencias para Kinect v2 Explorer
+# Requiere Python >=3.10, <3.13 (Python 3.12 recomendado)
+
+# Herramientas base de compilación requeridas por pylibfreenect2
+setuptools
+wheel
+cython>=3,<4
+numpy>=1.26,<2
+
+# Interfaz gráfica y visión artificial
+PyQt6>=6.6,<7
+opencv-contrib-python>=4.8,<5
+mediapipe>=0.10,<0.11
+
+# Control local de dispositivos IoT (enchufes y focos Tuya / Smart Life)
+tinytuya>=1.13,<2

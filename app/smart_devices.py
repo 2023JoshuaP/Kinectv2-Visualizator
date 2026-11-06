@@ -28,8 +28,8 @@ COLOURS = (("red", (255, 0, 0)), ("green", (0, 255, 0)), ("blue", (0, 0, 255)),
            ("yellow", (255, 200, 0)), ("purple", (160, 0, 255)), ("cyan", (0, 255, 255)))
 NETWORK_ERRORS = {"901", "902", "905"}
 LETTERS = set("ABCDEFGHIJKLMNÑOPQRSTUVWXYZ")
-INSTALL_HINT = ("tinytuya is not installed. Run: micromamba env update -n kinectv2-dev -f environment.yml "
-                "(or install tinytuya in .venv)")
+INSTALL_HINT = ("tinytuya is not installed. Run: pip install -r requirements.txt "
+                "(or micromamba env update -n kinectv2-dev -f environment.yml)")
 
 
 class DeviceError(Exception):

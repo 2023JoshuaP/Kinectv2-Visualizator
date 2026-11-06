@@ -14,3 +14,9 @@ pylibfreenect2/
 .env
 .venv/
 .local-deps/
+
+# Smart device local keys (see smart-devices.example.json).
+smart-devices.json
+smart-devices.tmp
+devices.json
+snapshot.json

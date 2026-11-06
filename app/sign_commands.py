@@ -108,5 +108,6 @@ class ActionRegistry:
         action = self.bindings.get(letter)
         if action is None:
             return "No action assigned"
-        self.handlers[action]()
-        return f"Executed: {action}"
+        # Asynchronous handlers (smart devices) may return their own status text.
+        result = self.handlers[action]()
+        return result if isinstance(result, str) else f"Executed: {action}"

@@ -13,3 +13,4 @@ dependencies:
       - numpy>=1.26,<2
       - mediapipe>=0.10,<0.11
       - opencv-contrib-python>=4.8,<5
+      - tinytuya>=1.13,<2

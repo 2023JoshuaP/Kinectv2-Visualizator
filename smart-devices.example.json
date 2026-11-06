@@ -1,0 +1,23 @@
+{
+  "scan_networks": [],
+  "devices": [
+    {
+      "name": "Enchufe",
+      "type": "plug",
+      "id": "DEVICE_ID_DEL_ENCHUFE",
+      "key": "LOCAL_KEY_DEL_ENCHUFE",
+      "ip": "auto",
+      "version": 3.5,
+      "bindings": {"P": "toggle"}
+    },
+    {
+      "name": "Foco",
+      "type": "bulb",
+      "id": "DEVICE_ID_DEL_FOCO",
+      "key": "LOCAL_KEY_DEL_FOCO",
+      "ip": "auto",
+      "version": 3.5,
+      "bindings": {"L": "toggle", "B": "brighter", "D": "dimmer", "R": "next colour"}
+    }
+  ]
+}

@@ -20,7 +20,7 @@ Cierra `Protonect` u otros programas que usen el Kinect antes de pulsar **Start 
 
 ## Uso
 
-Para ver letras en directo y abrir terminal, navegador u otras aplicaciones, consulta [Letras y aplicaciones por señas](app/SIGN_COMMANDS.md). En **Recognize signs**, pulsa **Start recognition**; comprueba el resultado antes de activar **Enable actions**.
+Para ver letras en directo y abrir terminal, navegador u otras aplicaciones, o controlar enchufes y focos Tuya/Smart Life, consulta [Letras y aplicaciones por señas](app/SIGN_COMMANDS.md#dispositivos-inteligentes-tuya--smart-life). En **Recognize signs**, pulsa **Start recognition**; comprueba el resultado antes de activar **Enable actions**.
 
 1. Selecciona el dispositivo (**Refresh devices** si hace falta), los flujos y la pipeline. CPU funciona sin GPU; las demás dependen de la compilación.
 2. Ajusta profundidad, filtros, exposición o LED antes de iniciar. Pulsa **Start capture**; detén la captura para cambiar estos ajustes.

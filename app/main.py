@@ -20,6 +20,11 @@ from capture import CaptureThread, available_pipelines, display_image
 from gestures import GestureThread
 from sign_commands import Templates, ActivationGate, ActionRegistry
 from alphabet_model import AlphabetModel
+from smart_devices import SmartHome
+
+# Local keys stay outside Git; override with KINECT_SMART_DEVICES=/path/file.json.
+SMART_DEVICES_FILE = Path(os.environ.get(
+    "KINECT_SMART_DEVICES", Path(__file__).resolve().parent.parent / "smart-devices.json"))
 
 
 HAND_EDGES = ((0, 1), (1, 2), (2, 3), (3, 4),
@@ -91,6 +96,8 @@ class ImageView(QLabel):
 
 
 class MainWindow(QMainWindow):
+    device_message = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Kinect v2 Explorer")
@@ -104,7 +111,17 @@ class MainWindow(QMainWindow):
         for name, candidates in APPLICATIONS.items():
             if name != "terminal" and any(shutil.which(candidate) for candidate in candidates):
                 handlers[name] = lambda candidates=candidates: self.launch_application(candidates)
+        # The worker thread emits this signal; Qt delivers it on the GUI thread.
+        self.smart_error = ""
+        try:
+            self.smart_home = SmartHome(SMART_DEVICES_FILE, notify=self.device_message.emit)
+            handlers.update(self.smart_home.handlers())
+        except (OSError, ValueError, TypeError) as error:
+            self.smart_home = None
+            self.smart_error = f"{SMART_DEVICES_FILE.name}: {error}"
         self.actions = ActionRegistry(handlers)
+        if self.smart_home is not None:
+            self.actions.bindings.update(self.smart_home.bindings())
         self.template_error = ""
         self.base_models = {}
         self.model_errors = {}
@@ -362,6 +379,7 @@ class MainWindow(QMainWindow):
         groups[2].addWidget(tip)
         for box in groups:
             box.addStretch()
+        command_layout.addWidget(self.build_smart_devices_panel())
         self.model_status = QLabel()
         self.model_status.setWordWrap(True)
         command_layout.addWidget(self.model_status)
@@ -439,6 +457,39 @@ class MainWindow(QMainWindow):
             self.steps_layout.setDirection(QBoxLayout.Direction.TopToBottom if self.width() < 760
                                            else QBoxLayout.Direction.LeftToRight)
         super().resizeEvent(event)
+
+    def build_smart_devices_panel(self):
+        panel = QGroupBox("Smart devices (Tuya / Smart Life, local network)")
+        layout = QVBoxLayout(panel)
+        self.devices_summary = QLabel(self.smart_error or (
+            self.smart_home.summary() if self.smart_home else ""))
+        self.devices_summary.setWordWrap(True)
+        self.device_status = QLabel("Assign a device action to a letter above, or test it here.")
+        self.device_status.setWordWrap(True)
+        self.device_status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.device_message.connect(self.on_device_message)
+        buttons = QHBoxLayout()
+        devices = self.smart_home.devices if self.smart_home else []
+        for device in devices:
+            button = QPushButton(f"Toggle {device.name}")
+            button.clicked.connect(lambda _, d=device: self.device_status.setText(
+                self.smart_home.submit(d, "toggle")))
+            buttons.addWidget(button)
+        discover = QPushButton("Find devices on network")
+        discover.setToolTip("Listen for Tuya UDP broadcasts and update saved IP addresses")
+        discover.setEnabled(bool(devices))
+        discover.clicked.connect(lambda: self.device_status.setText(self.smart_home.discover()))
+        buttons.addWidget(discover)
+        buttons.addStretch()
+        layout.addWidget(self.devices_summary)
+        layout.addLayout(buttons)
+        layout.addWidget(self.device_status)
+        return panel
+
+    def on_device_message(self, message):
+        self.device_status.setText(message)
+        if self.smart_home is not None:
+            self.devices_summary.setText(self.smart_home.summary())
 
     def update_sample_status(self):
         samples = (self.templates.data.get(self.alphabet.currentData(), {}).get(self.letter.currentText(), [])
@@ -837,6 +888,8 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 self.statusBar().showMessage("Waiting for hand analysis to stop...")
                 return
+        if self.smart_home is not None:
+            self.smart_home.shutdown()
         super().closeEvent(event)
 
 
